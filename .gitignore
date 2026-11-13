@@ -1,0 +1,22 @@
+# OS & Linux editor files
+*~
+*.swp
+*.swo
+*.bak
+.directory
+.DS_Store
+Thumbs.db
+
+# Build & release artifacts
+.release/
+dist/
+*.zip
+
+# IDE settings
+.vscode/
+.idea/
+
+# WoW client runtime files
+WTF/
+Logs/
+Errors/

@@ -1,0 +1,72 @@
+name: Release Addon
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  PROJECT_NAME: ForeverQuestKey
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build Addon Zip
+        id: build
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ZIP_NAME="${PROJECT_NAME}-v${VERSION}.zip"
+          
+          mkdir -p "dist/${PROJECT_NAME}"
+          cp Core.lua "${PROJECT_NAME}.toc" "dist/${PROJECT_NAME}/"
+          [ -f README.md ] && cp README.md "dist/${PROJECT_NAME}/"
+          
+          cd dist
+          zip -rq "${ZIP_NAME}" "${PROJECT_NAME}"
+          
+          echo "zip_path=dist/${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "zip_name=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.build.outputs.zip_path }}
+          generate_release_notes: true
+
+      - name: Upload to CurseForge
+        if: ${{ env.CF_API_KEY != '' }}
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+        run: |
+          CF_ID=$(grep -i "^## X-Curse-Project-ID:" "${PROJECT_NAME}.toc" | awk '{print $3}' | tr -d '\r')
+          if [ -z "$CF_ID" ] || [ "$CF_ID" = "0000000" ]; then
+            echo "Skipping CurseForge upload: No valid X-Curse-Project-ID in ${PROJECT_NAME}.toc"
+            exit 0
+          fi
+
+          # Fetch Classic gameVersion ID from CurseForge API (fallback to Classic Era / Forever compatible ID)
+          METADATA=$(jq -n \
+            --arg changelog "Release ${{ github.ref_name }}" \
+            --arg displayName "${PROJECT_NAME} ${{ github.ref_name }}" \
+            '{
+              changelog: $changelog,
+              changelogType: "markdown",
+              displayName: $displayName,
+              releaseType: "release",
+              gameVersions: [11479]
+            }')
+
+          curl -sS -X POST "https://wow.curseforge.com/api/projects/${CF_ID}/upload-file" \
+            -H "X-Api-Token: ${CF_API_KEY}" \
+            -F "metadata=${METADATA}" \
+            -F "file=@${{ steps.build.outputs.zip_path }}"
