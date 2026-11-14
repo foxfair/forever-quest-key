@@ -65,3 +65,11 @@ git push origin "$TAG"
 echo ""
 echo "Released ${TAG} successfully!"
 echo "Monitor workflow: https://github.com/foxfair/forever-quest-key/actions"
+if command -v gh >/dev/null 2>&1; then
+    echo "Waiting for GitHub Actions run to register..."
+    sleep 5
+    RUN_ID=$(gh run list --repo foxfair/forever-quest-key --limit 1 --json databaseId --jq '.[0].databaseId')
+    if [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ]; then
+        gh run watch "$RUN_ID" --repo foxfair/forever-quest-key
+    fi
+fi
