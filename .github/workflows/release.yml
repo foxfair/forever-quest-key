@@ -62,19 +62,25 @@ jobs:
           fi
 
           CF_ID=$(grep -i "^## X-Curse-Project-ID:" "${PROJECT_NAME}.toc" | awk '{print $3}' | tr -d '\r')
-          echo "Uploading ${{ steps.build.outputs.zip_name }} to CurseForge Project ID: ${CF_ID}"
+          IFACE=$(grep -i "^## Interface:" "${PROJECT_NAME}.toc" | awk '{print $3}' | tr -d '\r')
+          TARGET_VER="$((IFACE / 10000)).$(((IFACE / 100) % 100)).$((IFACE % 100))"
 
-          # Query CurseForge API for the latest WoW Classic Era gameVersion ID (gameVersionTypeID 67408)
+          echo "Uploading ${{ steps.build.outputs.zip_name }} to CurseForge Project ID: ${CF_ID} (Target WoW Version: ${TARGET_VER})"
+
           VERSIONS_JSON=$(curl -sS -H "X-Api-Token: ${CF_API_KEY}" "https://wow.curseforge.com/api/game/versions")
-          CLASSIC_VER_ID=$(echo "${VERSIONS_JSON}" | jq -r '[.[] | select(.gameVersionTypeID == 67408)] | sort_by(.id) | last | .id')
+          CLASSIC_VER_ID=$(echo "${VERSIONS_JSON}" | jq -r --arg ver "${TARGET_VER}" '
+            ([.[] | select(.gameVersionTypeID == 67408 and .name == $ver)] | first | .id) //
+            ([.[] | select(.name == $ver)] | first | .id)
+          ')
 
           if [ -z "${CLASSIC_VER_ID}" ] || [ "${CLASSIC_VER_ID}" = "null" ]; then
-            echo "Error: Failed to resolve Classic Era gameVersion ID from CurseForge API."
-            echo "Response: ${VERSIONS_JSON}"
+            echo "Error: Could not find CurseForge gameVersion ID for '${TARGET_VER}'."
+            echo "Available 1.60* versions on CurseForge:"
+            echo "${VERSIONS_JSON}" | jq -c '[.[] | select(.name | startswith("1.60"))]'
             exit 1
           fi
 
-          echo "Resolved Classic Era gameVersion ID: ${CLASSIC_VER_ID}"
+          echo "Resolved CurseForge gameVersion ID for ${TARGET_VER}: ${CLASSIC_VER_ID}"
 
           METADATA=$(jq -n \
             --arg changelog "Release ${{ github.ref_name }}" \
