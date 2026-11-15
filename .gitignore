@@ -20,3 +20,7 @@ dist/
 WTF/
 Logs/
 Errors/
+
+# git related
+release.sh
+
