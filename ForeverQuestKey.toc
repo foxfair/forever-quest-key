@@ -2,7 +2,7 @@
 ## Title: ForeverQuestKey
 ## Notes: Spacebar progression, priority quest queue, and custom sounds for WoW Forever.
 ## Author: Foxfair
-## Version: 1.2.8
+## Version: 1.2.9
 ## SavedVariables: ForeverQuestKeyDB
 ## X-Curse-Project-ID: 1803606
 
